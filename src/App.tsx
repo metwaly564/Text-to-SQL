@@ -25,13 +25,22 @@ function App() {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isListening, setIsListening] = useState(false);
+    const [isVoiceMode, setIsVoiceMode] = useState(false);
 
-    const suggestedQuestions = [
+    const suggestQuestions = [
         "كم عدد المشاريع المتأخرة؟",
         "اعرض قائمة بمشاريع قسم تقنية المعلومات",
         "ما هي ميزانية عام 2024؟",
         "من هو المورد الأكثر عقوداً؟"
     ];
+
+    const speak = (text: string) => {
+        if (!('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ar-SA';
+        window.speechSynthesis.speak(utterance);
+    };
 
     const startListening = () => {
         if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
@@ -48,6 +57,7 @@ function App() {
 
         recognition.onstart = () => {
             setIsListening(true);
+            setIsVoiceMode(true);
         };
 
         recognition.onresult = (event: any) => {
@@ -58,6 +68,7 @@ function App() {
         recognition.onerror = (event: any) => {
             console.error("Speech recognition error", event.error);
             setIsListening(false);
+            setIsVoiceMode(false);
         };
 
         recognition.onend = () => {
@@ -74,6 +85,11 @@ function App() {
         setMessages(prev => [...prev, userMsg]);
         setInput('');
         setIsLoading(true);
+
+        // Capture voice mode state and reset it just in case, or keep it until response?
+        // Typically we want to know if *this* message was voice.
+        const shouldSpeak = isVoiceMode;
+        setIsVoiceMode(false); // Reset for next interaction
 
         try {
             const response = await fetch('https://text-to-sql-b.onrender.com/api/chat', {
@@ -98,9 +114,17 @@ function App() {
             };
             setMessages(prev => [...prev, aiMsg]);
 
+            if (shouldSpeak) {
+                speak(data.answer);
+            }
+
         } catch (error: any) {
             console.error(error);
-            setMessages(prev => [...prev, { role: 'ai', content: `خطأ: ${error.message}. تأكد من تشغيل الخادم.` }]);
+            const errorMsg = `خطأ: ${error.message}. تأكد من تشغيل الخادم.`;
+            setMessages(prev => [...prev, { role: 'ai', content: errorMsg }]);
+            if (shouldSpeak) {
+                speak(errorMsg);
+            }
         } finally {
             setIsLoading(false);
         }
@@ -131,7 +155,7 @@ function App() {
 
                 <div className="input-area">
                     <div className="suggestions">
-                        {suggestedQuestions.map((q, idx) => (
+                        {suggestQuestions.map((q, idx) => (
                             <button key={idx} onClick={() => sendMessage(q)} disabled={isLoading}>
                                 {q}
                             </button>
