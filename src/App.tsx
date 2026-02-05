@@ -63,6 +63,7 @@ function App() {
         recognition.onresult = (event: any) => {
             const transcript = event.results[0][0].transcript;
             setInput(transcript);
+            sendMessage(transcript, true);
         };
 
         recognition.onerror = (event: any) => {
@@ -78,7 +79,7 @@ function App() {
         recognition.start();
     };
 
-    const sendMessage = async (text: string) => {
+    const sendMessage = async (text: string, forceVoice: boolean = false) => {
         if (!text.trim()) return;
 
         const userMsg: Message = { role: 'user', content: text };
@@ -88,7 +89,7 @@ function App() {
 
         // Capture voice mode state and reset it just in case, or keep it until response?
         // Typically we want to know if *this* message was voice.
-        const shouldSpeak = isVoiceMode;
+        const shouldSpeak = forceVoice || isVoiceMode;
         setIsVoiceMode(false); // Reset for next interaction
 
         try {
